@@ -7,6 +7,7 @@ using API.Services.Implementations;
 using API.Jobs;
 using API.Endpoints;
 using API.Models.ThirdParty;
+using API.Models.Shopify;
 using StackExchange.Redis;
 using Hangfire;
 using Hangfire.Dashboard;
@@ -25,18 +26,18 @@ internal class Program
 
         // Hangfire Configuration
         builder.Services.AddHangfire(configuration => configuration
-            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-            .UseSimpleAssemblyNameTypeSerializer()
-            .UseRecommendedSerializerSettings()
-            .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")), new PostgreSqlStorageOptions
-            {
-                QueuePollInterval = TimeSpan.FromSeconds(10),
-                JobExpirationCheckInterval = TimeSpan.FromHours(1),
-                CountersAggregateInterval = TimeSpan.FromMinutes(5),
-                PrepareSchemaIfNecessary = true,
-                TransactionSynchronisationTimeout = TimeSpan.FromMinutes(5),
-                SchemaName = "hangfire"
-            }));
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")), new PostgreSqlStorageOptions
+                {
+                    QueuePollInterval = TimeSpan.FromSeconds(10),
+                    JobExpirationCheckInterval = TimeSpan.FromHours(1),
+                    CountersAggregateInterval = TimeSpan.FromMinutes(5),
+                    PrepareSchemaIfNecessary = true,
+                    TransactionSynchronisationTimeout = TimeSpan.FromMinutes(5),
+                    SchemaName = "hangfire"
+                }));
 
         builder.Services.AddHangfireServer(options =>
         {
@@ -58,6 +59,12 @@ internal class Program
         builder.Services.AddScoped<IDiscordService, DiscordService>();
         builder.Services.AddScoped<SampleBackgroundJobs>();
 
+        // Shopify Services
+        builder.Services.AddScoped<IShopifyAuthService, ShopifyAuthService>();
+        builder.Services.AddScoped<IShopifyWebhookService, ShopifyWebhookService>();
+        builder.Services.AddScoped<IShopifyApiService, ShopifyApiService>();
+        builder.Services.AddScoped<IShopifyRepository, ShopifyRepository>();
+
         // Configure AutoMapper
         builder.Services.AddAutoMapper(typeof(Program));
 
@@ -65,7 +72,11 @@ internal class Program
         builder.Services.Configure<DiscordSettings>(
             builder.Configuration.GetSection("Discord"));
 
-        // Add HttpClient for Discord service
+        // Configure Shopify settings
+        builder.Services.Configure<ShopifySettings>(
+            builder.Configuration.GetSection("Shopify"));
+
+        // Add HttpClient for Discord and Shopify services
         builder.Services.AddHttpClient();
 
         builder.Services.ConfigureHttpJsonOptions(options =>
@@ -138,12 +149,10 @@ internal class Program
     }
 }
 
-// Simple authorization filter for Hangfire Dashboard (development only)
 public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
 {
     public bool Authorize(DashboardContext context)
     {
-        // In production, implement proper authorization
         return true;
     }
 }

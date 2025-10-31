@@ -21,6 +21,7 @@ public static class EndpointExtensions
             .MapJobEndpoints();
 
         app.MapDiscordEndpoints();
+        app.MapShopifyEndpoints();
 
         return app;
     }

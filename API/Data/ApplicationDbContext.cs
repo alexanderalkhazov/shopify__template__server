@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using API.Models;
+using API.Models.Shopify;
 
 namespace API.Data;
 
@@ -10,6 +11,8 @@ public class ApplicationDbContext : DbContext
 
     }
     public DbSet<Entity> Entities { get; set; }
+    public DbSet<ShopifyShop> ShopifyShops { get; set; }
+    public DbSet<ShopifyWebhook> ShopifyWebhooks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +39,60 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        // Shopify entities configuration
+        modelBuilder.Entity<ShopifyShop>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ShopDomain).IsUnique();
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.InstalledAt);
+
+            entity.Property(e => e.ShopDomain)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(e => e.AccessToken)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<ShopifyWebhook>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ShopId, e.Topic });
+            entity.HasIndex(e => e.WebhookId);
+
+            entity.Property(e => e.WebhookId)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(e => e.Topic)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(e => e.Address)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Foreign key relationship
+            entity.HasOne(w => w.Shop)
+                .WithMany(s => s.Webhooks)
+                .HasForeignKey(w => w.ShopId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed data

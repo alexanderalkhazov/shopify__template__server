@@ -105,31 +105,261 @@ The system uses multiple queues for job prioritization:
 - **Dead Letter Queue**: Permanently failed jobs for manual review
 - **Detailed Logging**: All job executions logged with timestamps and errors
 
-## 🛒 Simple Shopify Integration
+## 🛒 Comprehensive Shopify App Template
 
-Basic Shopify API integration for products and orders.
+Complete Shopify app template with OAuth authentication, webhook management, and API integration.
+
+### Features
+- **OAuth 2.0 Flow**: Secure app installation and authorization
+- **Scope Management**: Configurable OAuth scopes with validation
+- **Webhook Handling**: Automatic webhook creation and processing
+- **Shop Management**: Store and manage multiple shop installations
+- **API Integration**: Full Shopify REST API support
+- **Background Jobs**: Webhook processing with Hangfire
+- **Discord Notifications**: Real-time alerts for shop events
 
 ### Configuration
-Add your Shopify credentials to `appsettings.json`:
+Configure your Shopify app in `appsettings.json`:
 ```json
 {
   "Shopify": {
-    "ShopDomain": "your-shop.myshopify.com",
-    "AccessToken": "your-shopify-access-token"
+    "ClientId": "your-shopify-app-client-id",
+    "ClientSecret": "your-shopify-app-client-secret",
+    "Scopes": "read_products,write_products,read_orders,write_orders,read_customers",
+    "WebhookSecret": "your-webhook-secret",
+    "AppUrl": "https://your-app-domain.com",
+    "RedirectUrl": "https://your-app-domain.com/auth/callback",
+    "ApiVersion": "2024-10",
+    "EnableWebhooks": true,
+    "RequiredWebhooks": [
+      "orders/create",
+      "orders/updated", 
+      "products/create",
+      "app/uninstalled"
+    ]
   }
 }
 ```
 
-### API Endpoints
-```bash
-# Get all products
-GET /api/shopify/products
+### OAuth & Installation Flow
 
-# Get all orders  
-GET /api/shopify/orders
+#### 1. Initiate Installation
+```bash
+# Generate OAuth URL for shop installation
+GET /api/shopify/auth?shop=your-shop-name&state=optional-state
+
+# Response:
+{
+  "authUrl": "https://your-shop.myshopify.com/admin/oauth/authorize?...",
+  "shopDomain": "your-shop.myshopify.com",
+  "message": "Redirect user to this URL to begin OAuth flow"
+}
 ```
 
-That's it! Keep it simple.
+#### 2. Handle OAuth Callback
+```bash
+# OAuth callback (automatically handled)
+GET /api/shopify/auth/callback?shop=your-shop.myshopify.com&code=auth-code
+
+# Response:
+{
+  "success": true,
+  "shop": {
+    "domain": "your-shop.myshopify.com",
+    "name": "Your Shop",
+    "scopes": ["read_products", "write_products"],
+    "webhooksConfigured": true
+  }
+}
+```
+
+### Shop Management
+
+#### Get All Installed Shops
+```bash
+GET /api/shopify/shops
+
+# Response:
+{
+  "shops": [
+    {
+      "id": 1,
+      "domain": "shop1.myshopify.com",
+      "name": "Shop 1",
+      "email": "owner@shop1.com",
+      "scopes": ["read_products", "write_products"],
+      "webhooksConfigured": true,
+      "installedAt": "2024-01-01T00:00:00Z",
+      "lastActivity": "2024-01-02T10:30:00Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+### Webhook Management
+
+Webhooks are automatically created during installation. Supported webhook topics:
+
+- **Order Events**: `orders/create`, `orders/updated`, `orders/paid`, `orders/cancelled`
+- **Product Events**: `products/create`, `products/update`
+- **App Events**: `app/uninstalled`
+
+#### Manual Webhook Setup
+```bash
+# Setup webhooks for a specific shop
+POST /api/shopify/shops/{shopDomain}/webhooks/setup
+
+# Response:
+{
+  "success": true,
+  "message": "Webhooks configured successfully"
+}
+```
+
+#### Webhook Processing
+Webhooks are automatically processed and trigger:
+- Discord notifications
+- Database updates
+- Background job processing
+- Shop activity tracking
+
+### API Integration
+
+#### Get Shop Products
+```bash
+GET /api/shopify/shops/{shopDomain}/products?limit=50
+
+# Response:
+{
+  "products": [
+    {
+      "id": 123456789,
+      "title": "Sample Product",
+      "handle": "sample-product",
+      "product_type": "Physical",
+      "vendor": "Your Brand",
+      "status": "active",
+      "variants": [...]
+    }
+  ],
+  "count": 1
+}
+```
+
+#### Get Shop Orders
+```bash
+GET /api/shopify/shops/{shopDomain}/orders?limit=50
+
+# Response:
+{
+  "orders": [
+    {
+      "id": 987654321,
+      "order_number": 1001,
+      "email": "customer@example.com",
+      "total_price": "99.99",
+      "currency": "USD",
+      "financial_status": "paid"
+    }
+  ],
+  "count": 1
+}
+```
+
+### Scope Management
+
+#### Check Shop Scopes
+```bash
+GET /api/shopify/scopes/check/{shopDomain}
+
+# Response:
+{
+  "shopDomain": "shop.myshopify.com",
+  "currentScopes": ["read_products", "write_products"],
+  "requiredScopes": ["read_products", "write_products", "read_orders"],
+  "hasRequiredScopes": false,
+  "missingScopes": ["read_orders"]
+}
+```
+
+### Analytics & Monitoring
+
+#### App Analytics
+```bash
+GET /api/shopify/analytics/overview
+
+# Response:
+{
+  "activeShops": 25,
+  "recentInstalls": 5,
+  "shopsWithoutWebhooks": 2,
+  "recentInstallations": [
+    {
+      "domain": "new-shop.myshopify.com",
+      "name": "New Shop",
+      "installedAt": "2024-01-02T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Database Schema
+
+The template includes two main Shopify tables:
+
+#### `shopify_shops`
+- Shop installation records
+- OAuth tokens and scopes
+- Shop metadata and activity tracking
+
+#### `shopify_webhooks` 
+- Webhook registration tracking
+- Topic and endpoint mapping
+- Active status monitoring
+
+### Background Jobs Integration
+
+Shopify webhooks trigger background jobs for:
+- Order processing and notifications
+- Product synchronization
+- Inventory updates
+- Customer data processing
+- App analytics and reporting
+
+### Development Setup
+
+1. **Create Shopify App**: Set up your app in the Shopify Partner Dashboard
+2. **Configure Endpoints**: Update `appsettings.json` with your app credentials
+3. **Database Migration**: Run migrations to create Shopify tables
+4. **Ngrok Tunnel**: Use ngrok for local webhook testing
+5. **Test Installation**: Install your app on a development store
+
+### Security Features
+
+- **HMAC Verification**: All webhooks verified with HMAC signatures
+- **OAuth State Parameter**: CSRF protection for OAuth flow
+- **Scope Validation**: Automatic scope requirement checking
+- **Token Storage**: Secure encrypted token storage
+- **Request Signing**: All API requests properly authenticated
+
+### Error Handling & Monitoring
+
+- **Discord Alerts**: Real-time error notifications
+- **Comprehensive Logging**: Detailed operation logging
+- **Retry Logic**: Automatic retry for failed operations
+- **Health Checks**: Shop connectivity monitoring
+- **Analytics Dashboard**: Installation and usage metrics
+
+### Production Deployment
+
+1. **SSL Certificate**: Ensure HTTPS for all endpoints
+2. **Environment Variables**: Move secrets to environment variables
+3. **Database Security**: Use connection string encryption
+4. **Rate Limiting**: Implement API rate limiting
+5. **Monitoring**: Set up application monitoring and alerting
+
+This template provides everything needed to build a production-ready Shopify app with proper OAuth flow, webhook management, and API integration.
 
 ## 🛠️ Development Commandsbuilding scalable web APIs with comprehensive job processing capabilities.
 
